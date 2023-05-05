@@ -1,7 +1,7 @@
 ujrpc 
 =============
 
-Adapted from (SimpleJsonRpc)[https://github.com/moritz-wundke/simplejsonrpc]
+Adapted from [SimpleJsonRpc](https://github.com/moritz-wundke/simplejsonrpc) , tested on Micropython ESP32.
 
 Changes:
 ----
