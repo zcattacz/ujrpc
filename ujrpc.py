@@ -1,47 +1,22 @@
-# -*- coding: utf-8 -*-
-"""
-Simple jsonrpc base implementation using decorators.
-
-    from urjpc import *
-
-    loginservice = ujrpc(api_version=1)
-
-    @jsonremote(loginservice, name='login', doc='Method used to log a user in')
-    def login(request, user_name, user_pass):
-        (...)
-"""
-
 import ujson as json
-# import logging; log = logging.getLogger("SimpleJsonRPC")
 
-class JRPC2_ERRS:
-    """
-    see https://www.jsonrpc.org/specification
-    custom error from -32000 ~ -32099
-    """
+class JRPC2_ERRS: # see https://www.jsonrpc.org/specification;
     PARSE_ERR = {"code": -32700, "message": "Parse error"}
     INVLD_REQ = {"code": -32600, "message": "Invalid Request"}
     MTHD_NA   = {"code": -32601, "message": "Method not found"}
     INVLD_PRM = {"code": -32602, "message": "Invalid params"}
     INTNL_ERR = {"code": -32603, "message": "Internal error"}
-    CUSTM_ERR = {"code": -32000, "message": "implementation-defined errors"}
+    CUSTM_ERR = {"code": -32000, "message": "implementation-defined errors"} #-32000 ~ -32099
 
 class JRPCException(Exception):
-    """
-    Base exception class for program specific errors
-    """
     def __init__(self, message, code, data):
         super(JRPCException, self).__init__(message)
-
         # Custom data
         self.message = message
         self.code = code
         self.data = data
 
 class JRPCService:
-    """
-    Simple JSON RPC service
-    """
     def __init__(self, method_map=None, api_version=0, debug=False):
         if method_map is None:
             self.method_map = {}
@@ -63,9 +38,7 @@ class JRPCService:
             json_version, method_id, method = data["jsonrpc"], data["id"], data["method"]
         except KeyError:
             return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_REQ}
-        # params could be abesent:
-        # 4.2 Parameter Structures
-        # If present, parameters for the rpc call MUST be provided as a Structured value.
+        # params must be abesent, list or dict, see Sepc section 4.2
         kwargs = {} ; args = []
         _parms = data.get("params")
         if isinstance(_parms, list):
@@ -93,7 +66,6 @@ class JRPCService:
         except TypeError as ex:
             if self.debug:
                 print("RPC.INVLD_PRM", ex)
-                #sys.print_exception(e)
             return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_PRM}
         except Exception as ex:
             if self.debug:
@@ -103,7 +75,7 @@ class JRPCService:
             else:
                 return self.rsp2|{'id': None, "error": JRPC2_ERRS.INTNL_ERR}
 
-    def __call__(self, request, no_dump=False ):
+    def __call__(self, request):
         try:
             data = json.loads(request) if isinstance(request, str) else request
             if isinstance(data, dict):
@@ -126,7 +98,6 @@ class JRPCService:
         desc['methods']={}
         for k in self.method_map:
             v = self.method_map[k]
-            # Document method, still some tweaking required
             desc['methods'][k] = {}
             if k in self.doc_map:
                 desc['methods'][k]['doc'] = self.doc_map[k]
@@ -135,19 +106,6 @@ class JRPCService:
         return desc
 
 def jsonremote(service, name=None, doc=None):
-    """
-    makes JRPCSerivce a decorator so that you can write :
-    
-    from ujrpc import *
-
-    loginservice = JRPCSerivce(api_version=1)
-
-    @jsonremote(loginservice, name='login', doc='Method used to log a user in')
-    def login(request, user_name, user_pass):
-        (...)
-    
-    """
-    
     def remotify(func):
         if isinstance(service, JRPCService):
             func_name = name
@@ -157,7 +115,7 @@ def jsonremote(service, name=None, doc=None):
             if doc:
                 service.add_doc(func_name, doc)
         else:
-            raise NotImplementedError('Service "%s" not an instance of JRPCService' % str(service))
+            raise NotImplementedError('"%s" not JRPCService instance' % str(service))
         return func
 
     return remotify
