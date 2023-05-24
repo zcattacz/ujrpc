@@ -33,15 +33,15 @@ jrpc = JRPCService(api_version=1)
 
 # jrpc.debug = False
 
-@jsonremote(jrpc, name='add', doc='test1: add')
+@jrpc.fn(jrpc, name='add', doc='test1: add')
 def add(r, a, b):
     return a + b
 
-@jsonremote(jrpc, name='echo', doc='test2: echo')
+@jrpc.fn(jrpc, name='echo', doc='test2: echo')
 def echo(r, msg):
     return msg
 
-@jsonremote(jrpc, name='login', doc='Method used to log a user in')
+@jrpc.fn(jrpc, name='login', doc='Method used to log a user in')
 def login(request, user_name, user_pass):
     (...)
 

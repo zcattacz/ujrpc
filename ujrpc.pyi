@@ -52,17 +52,16 @@ class JRPCService:
     def handle_rpc(self, data: Union[list, dict], request:Union[str, list, dict]) -> dict: ...
     def __call__(self, request: Union[str, list, dict]) -> str: ...
     def api(self) -> str: ...
+    def fn(self, name:Optional[str]=None, doc:Optional[str]=None)-> Callable[[TFunc], TFunc]:
+        """
+        makes JRPCSerivce a decorator so that you can write :
+        
+        from ujrpc import *
 
-def jsonremote(service:JRPCService, name:Optional[str]=None, doc:Optional[str]=None)-> Callable[[TFunc], TFunc]:
-    """
-    makes JRPCSerivce a decorator so that you can write :
-    
-    from ujrpc import *
+        loginservice = JRPCSerivce(api_version=1)
 
-    loginservice = JRPCSerivce(api_version=1)
-
-    @jsonremote(loginservice, name='login', doc='Method used to log a user in')
-    def login(request, user_name, user_pass):
-        (...)
-    
-    """
+        @jsonremote(loginservice, name='login', doc='Method used to log a user in')
+        def login(request, user_name, user_pass):
+            (...)
+        
+        """

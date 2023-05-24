@@ -105,17 +105,17 @@ class JRPCService:
             # desc['methods'][k]['def'] = inspect.getargspec(v)
         return desc
 
-def jsonremote(service, name=None, doc=None):
-    def remotify(func):
-        if isinstance(service, JRPCService):
-            func_name = name
-            if func_name is None:
-                func_name = func.__name__
-            service.add_method(func_name, func)
-            if doc:
-                service.add_doc(func_name, doc)
-        else:
-            raise NotImplementedError('"%s" not JRPCService instance' % str(service))
-        return func
+    def fn(self, name=None, doc=None):
+        def remotify(func):
+            if isinstance(self, JRPCService):
+                func_name = name
+                if func_name is None:
+                    func_name = func.__name__
+                self.add_method(func_name, func)
+                if doc:
+                    self.add_doc(func_name, doc)
+            else:
+                raise NotImplementedError('"%s" not JRPCService instance' % str(self))
+            return func
 
-    return remotify
+        return remotify
