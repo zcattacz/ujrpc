@@ -1,14 +1,15 @@
 ujrpc 
 =============
 
-Adapted from [SimpleJsonRpc](https://github.com/moritz-wundke/simplejsonrpc) , tested on Micropython ESP32.
+Adapted from [SimpleJsonRpc](https://github.com/moritz-wundke/simplejsonrpc) , tested on Micropython ESP32, ESP32-S2.
 
 Changes:
 ----
 - adapted for micropython
 - fix handling of error, parameter and batched request
 - shorten code to save space
-
+- add asyncio support
+- removed __call__(), use handle_rpc(request)/handle_rpca(request) instead
 
 Simple JSON-RPC 2.0 compilant middleware for python using decorators. With just a few lines of code you get a JSONRPC 2.0 compilant web API running and ready for your needs!
 
@@ -33,16 +34,16 @@ jrpc = JRPCService(api_version=1)
 
 # jrpc.debug = False
 
-@jrpc.fn(jrpc, name='add', doc='test1: add')
+@jrpc.fn(name='add', doc='test1: add')
 def add(r, a, b):
     return a + b
 
-@jrpc.fn(jrpc, name='echo', doc='test2: echo')
+@jrpc.fn(name='echo', doc='test2: echo')
 def echo(r, msg):
     return msg
 
-@jrpc.fn(jrpc, name='login', doc='Method used to log a user in')
-def login(request, user_name, user_pass):
+@jrpc.fn(name='login', doc='Method used to log a user in')
+def login(r, user_name, user_pass):
     (...)
 
 requests = """[
@@ -51,12 +52,43 @@ requests = """[
 ]"""
 
 # in mqtt_as callbacks or picoweb route handlers:
-response = jrpc(requests)
+response = jrpc.handle_rpc(requests)
 
 print(response)
 # [{"jsonrpc": "2.0", "id": 1, "result": 33}, 
 #  {"jsonrpc": "2.0", "id": 2, "result": "Hello"}]
 
+import uasyncio as asyncio
+
+class TestAsync():
+    def __init__(self):
+        self.cal_cnt = 0
+    @jrpc.fn(name="async_add")
+    async def add(self, a, b):
+        self.cal_cnt += 1
+        return a+b
+    @jrpc.fn(name="product")
+    def prd(self, a, b):
+        self.cal_cnt += 1
+        return a*b
+
+requests = """[
+{"jsonrpc": "2.0",  "method": "async_add", "params": [11,22], "id": 1},
+{"jsonrpc": "2.0",  "method": "product", "params": [33,44], "id": 2},
+]"""
+async def main():
+    ta = TestAsync()
+    jrpc.bind_self = ta # pass ta as 1st parameter to decorated fn, instead of jrpc
+    print("cal_cnt=", ta.cal_cnt)
+    response = await jrpc.handle_rpca(requests)
+    print(response)
+    print("cal_cnt=", ta.cal_cnt)
+
+asyncio.run(main())
+
+# cal_cnt= 0
+# [{"jsonrpc": "2.0", "id": 1, "result": 33}, {"jsonrpc": "2.0", "id": 2, "result": 1452}]
+# cal_cnt= 2
 
 ```
 

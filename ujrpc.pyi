@@ -45,12 +45,21 @@ class JRPCService:
         self.api_version = api_version
         self.doc_map = {}
         self.rsp2 = {'jsonrpc':"2.0"}
-        self.debug = debug
+        self.debug:bool = debug
+        self.bind_self:Any = None
     
-    def add_method(self, name:str, method:TFunc) -> None: ...
-    def add_doc(self, name:str, doc:str) -> None: ...
-    def handle_rpc(self, data: Union[list, dict], request:Union[str, list, dict]) -> dict: ...
-    def __call__(self, request: Union[str, list, dict]) -> str: ...
+    def handle_rpc(self, request:Union[str, list, dict]) -> str:
+        """
+        Process jsonrpc request in synchronous context, 
+        taks json str, dict, list returns json string
+        """
+        ...
+    async def handle_rpca(self, request:Union[str, list, dict]) -> str:
+        """
+        Process jsonrpc request in asynchronous context
+        taks json str, dict, list returns json string
+        """
+        ...
     def api(self) -> str: ...
     def fn(self, name:Optional[str]=None, doc:Optional[str]=None)-> Callable[[TFunc], TFunc]:
         """
@@ -60,8 +69,15 @@ class JRPCService:
 
         loginservice = JRPCSerivce(api_version=1)
 
-        @jsonremote(loginservice, name='login', doc='Method used to log a user in')
+        @jrpc.fn(name='login', doc='Method used to log a user in')
         def login(request, user_name, user_pass):
             (...)
-        
+
+        For correspoding the JSON rpc request format, please see the spec:
+        4.2 Parameter Structures
+        If present, parameters for the rpc call MUST be provided as a Structured value ...
+            by-position: params MUST be an Array, containing the values in the Server expected order.
+            by-name: params MUST be an Object, with member names .. MUST match exactly, including case, to the method's expected parameters.
+
+        Note: function inspection is not used in mpy version, only params type is checked.
         """
