@@ -11,7 +11,7 @@ Simple jsonrpc base implementation using decorators.
         (...)
 """
 
-from typing import Union, Optional, Any, Callable
+from typing import Union, Optional, Any, Callable, Dict
 TFunc = Callable[..., Any]
 
 class JRPC2_ERRS:
@@ -47,14 +47,16 @@ class JRPCService:
         self.rsp2 = {'jsonrpc':"2.0"}
         self.debug:bool = debug
         self.bind_self:Any = None
+        self.ret_str = True
     
-    def handle_rpc(self, request:Union[str, list, dict]) -> str:
+    def _hndl_chk(self, data, _r) -> Optional[Dict]:...
+    def handle_rpc(self, request:Union[str, list, dict]) -> Any:
         """
         Process jsonrpc request in synchronous context, 
         taks json str, dict, list returns json string
         """
         ...
-    async def handle_rpca(self, request:Union[str, list, dict]) -> str:
+    async def handle_rpca(self, request:Union[str, list, dict]) -> Any:
         """
         Process jsonrpc request in asynchronous context
         taks json str, dict, list returns json string

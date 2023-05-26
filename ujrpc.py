@@ -24,18 +24,27 @@ class JRPCService:
             self.method_map = method_map
         self.api_version = api_version
         self.doc_map = {}
-        self.rsp2 = {'jsonrpc':"2.0"}
+        self.rsp2 = {'jsonrpc':"2.0", "id":None}
         self.debug = debug
         self.bind_self = None
+        self.ret_str = True
 
-    def _hndl_chk(self, data):
+    def _hndl_chk(self, data, _r):
         try:
             v, mtd_id, mtd = data["jsonrpc"], data["id"], data["method"]
         except KeyError:
-            return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_REQ}
+            _r.update({"error": JRPC2_ERRS.INVLD_REQ})
+            return
         
         if v != "2.0":
-            return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_REQ,}
+            _r.update({"error": JRPC2_ERRS.INVLD_REQ})
+            return
+        
+        try:
+            mtd = self.method_map[mtd]
+        except KeyError:
+            _r.update({"error": JRPC2_ERRS.MTHD_NA})
+            return
 
         # params must be abesent, list or dict, see Sepc section 4.2
         kwargs = {} ; args = []
@@ -47,89 +56,94 @@ class JRPCService:
         elif isinstance(_parms, dict):
             kwargs = _parms
         else:
-            return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_PRM}
+            _r.update({"error": JRPC2_ERRS.INVLD_PRM})
+            return
         
         if self.debug:
             print("params:", _parms)
 
-        try:
-            return {"method":self.method_map[mtd], "id":mtd_id, "args":args, "kwargs":kwargs}
-        except KeyError:
-            return self.rsp2|{'id': mtd_id, "error": JRPC2_ERRS.MTHD_NA,}
+        _r["id"] = mtd_id
+        return {"method":mtd, "id":mtd_id, "args":args, "kwargs":kwargs,
+                "_self": self.bind_self if self.bind_self else self}
         
-    def _hndl_err(self, ex, ctx):
+    def _hndl_err(self, ex, ctx, _r):
         if isinstance(ex,JRPCException):
             if self.debug:
                 print("RPC.CUSTM_ERR", ex)
-            return self.rsp2|{'id': ctx["id"], "error": {"code": ex, "message": ex.message, "data": ex.data},}
+            _r.update({"error": {"code": ex, "message": ex.message, "data": ex.data}})
         elif isinstance(ex,TypeError):
             if self.debug:
                 print("RPC.INVLD_PRM", ex)
-            return self.rsp2|{'id': None, "error": JRPC2_ERRS.INVLD_PRM}
+            else:
+                _r["id"] = None
+            _r.update({"error": JRPC2_ERRS.INVLD_PRM})
         else:
             if self.debug:
                 print("RPC.JRPC_Error", ex)
                 #import usys; usys.print_exception(ex)
-                return self.rsp2|{'id': ctx["id"], "error": {"code": ex.errno, "message": ex.value, "data": ex.args}} # type:ignore
+                _r.update({"error": {"code": ex.errno, "message": ex.value, "data": ex.args}}) # type:ignore
             else:
-                return self.rsp2|{'id': None, "error": JRPC2_ERRS.INTNL_ERR}
+                _r["id"] = None
+                _r.update({'id': None, "error": JRPC2_ERRS.INTNL_ERR})
 
-    def _hndl_rpc(self, data):
-        ctx = self._hndl_chk(data)
-        if "jsonrpc" in ctx: return ctx
-        _self = self.bind_self if self.bind_self else self
+    def _hndl_rpc(self, data, _r):
+        ctx = self._hndl_chk(data, _r)
+        if ctx is None: return
         
         try:
-            ret = ctx["method"](_self, *ctx["args"], **ctx["kwargs"]) # type:ignore
-            return self.rsp2|{'id': ctx["id"], 'result': ret}
+            ret = ctx["method"](ctx["_self"], *ctx["args"], **ctx["kwargs"]) # type:ignore
+            _r.update({'result': ret})
         except Exception as ex:
-            return self._hndl_err(ex, ctx)
+            self._hndl_err(ex, ctx, _r)
 
-    async def _hndl_rpca(self, data):
-        ctx = self._hndl_chk(data)
-        if "jsonrpc" in ctx: return ctx
-        _self = self.bind_self if self.bind_self else self
+    async def _hndl_rpca(self, data, _r):
+        ctx = self._hndl_chk(data, _r)
+        if ctx is None: return
         
         try:
             if ctx["method"].__class__.__name__ == "generator": #async function
-                ret = await ctx["method"](_self, *ctx["args"], **ctx["kwargs"]) #type:ignore
+                ret = await ctx["method"](ctx["_self"], *ctx["args"], **ctx["kwargs"]) #type:ignore
             else:
-                ret = ctx["method"](_self, *ctx["args"], **ctx["kwargs"]) #type:ignore
-            return self.rsp2|{'id': ctx["id"], 'result': ret}
+                ret = ctx["method"](ctx["_self"], *ctx["args"], **ctx["kwargs"]) #type:ignore
+            _r.update({'result': ret})
         except Exception as ex:
-            return self._hndl_err(ex, ctx)
+            self._hndl_err(ex, ctx, _r)
+
+    def _hndl_parsing(self, request, _r):
+        try:
+            return json.loads(request) if isinstance(request, str) else request
+        except Exception as ex:
+            if self.debug:
+                print("RPC.PARSE_ERR", ex, request)
+            _r.update({"error": JRPC2_ERRS.PARSE_ERR})
 
     def handle_rpc(self, request):
-        try:
-            data = json.loads(request) if isinstance(request, str) else request
-            if isinstance(data, dict):
-                return json.dumps(self._hndl_rpc(data))
-            elif isinstance(data, list):
-                rets = []
-                for batched_rpc in data:
-                    rets.append(self._hndl_rpc(batched_rpc))
-                return json.dumps(rets)
-            data = 1/0
-        except Exception as ex:
-            if self.debug:
-                print("RPC.PARSE_ERR", ex, request)
-            return json.dumps(self.rsp2|{'id': None, "error": JRPC2_ERRS.PARSE_ERR,})
+        _r = self.rsp2.copy()
+        data = self._hndl_parsing(request, _r)
+        if isinstance(data, dict):
+            self._hndl_rpc(data,_r)
+        elif isinstance(data, list):
+            rets = []
+            for batched_rpc in data:
+                _r = self.rsp2.copy()
+                self._hndl_rpc(batched_rpc,_r)
+                rets.append(_r)
+            return json.dumps(rets) if self.ret_str else rets
+        return json.dumps(_r) if self.ret_str else _r
     
     async def handle_rpca(self, request):
-        try:
-            data = json.loads(request) if isinstance(request, str) else request
-            if isinstance(data, dict):
-                return json.dumps(await self._hndl_rpca(data))
-            elif isinstance(data, list):
-                rets = []
-                for batched_rpc in data:
-                    rets.append(await self._hndl_rpca(batched_rpc))
-                return json.dumps(rets)
-            data = 1/0
-        except Exception as ex:
-            if self.debug:
-                print("RPC.PARSE_ERR", ex, request)
-            return json.dumps(self.rsp2|{'id': None, "error": JRPC2_ERRS.PARSE_ERR})
+        _r = self.rsp2.copy()
+        data = self._hndl_parsing(request, _r)
+        if isinstance(data, dict):
+            await self._hndl_rpca(data,_r)
+        elif isinstance(data, list):
+            rets = []
+            for batched_rpc in data:
+                _r = self.rsp2.copy()
+                await self._hndl_rpca(batched_rpc,_r)
+                rets.append(_r)
+            return json.dumps(rets) if self.ret_str else rets
+        return json.dumps(_r) if self.ret_str else _r
 
     def api(self):
         desc = {}
