@@ -1,4 +1,9 @@
-import ujson as json
+try:
+    import ujson as json
+    import uasyncio as asyncio
+except:
+    import json
+    import asyncio
 
 class JRPC2_ERRS: # see https://www.jsonrpc.org/specification;
     PARSE_ERR = {"code": -32700, "message": "Parse error"}

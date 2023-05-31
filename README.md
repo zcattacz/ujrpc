@@ -1,7 +1,7 @@
 ujrpc 
 =============
 
-Adapted from [SimpleJsonRpc](https://github.com/moritz-wundke/simplejsonrpc) , tested on Micropython ESP32, ESP32-S2.
+Adapted from [SimpleJsonRpc](https://github.com/moritz-wundke/simplejsonrpc) , tested on Micropython ESP32, ESP32-S2, CPython 3.9
 
 Changes:
 ----
@@ -13,7 +13,7 @@ Changes:
 
 Simple JSON-RPC 2.0 compilant middleware for python using decorators. With just a few lines of code you get a JSONRPC 2.0 compilant web API running and ready for your needs!
 
-Install
+Install on Micropython
 ----
 
 copy ujrpc.py to micropython:
@@ -58,7 +58,10 @@ print(response)
 # [{"jsonrpc": "2.0", "id": 1, "result": 33}, 
 #  {"jsonrpc": "2.0", "id": 2, "result": "Hello"}]
 
-import uasyncio as asyncio
+try:
+    import uasyncio as asyncio
+except:
+    import asyncio
 
 class TestAsync():
     def __init__(self):

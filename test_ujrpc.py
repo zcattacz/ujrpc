@@ -1,5 +1,5 @@
 from ujrpc import JRPCService, JRPCException
-import json
+import json, sys
 try:
     from typing import Dict, Union
 except:
@@ -132,6 +132,14 @@ def test_parser_error(test_async=False):
         assert(ret["error"]["message"] == "Parse error")
         #assert(ret1["error"]["message"] == 'Invalid params')
 
+    #[{},] will not trigger parse error in ujson
+    ret = jrpc.handle_rpc('[{"jsonrpc": "2.0",  "method": "test_args", "params": [1,2], "id": 1},]')
+    if "MicroPython" in sys.version:
+         assert("error" not in ret)
+    else:
+        assert(ret["error"]["message"] == "Parse error")
+
+
 #test for batched RPC"
 req1 = """[
 {"jsonrpc": "2.0",  "method": "test_args", "params": {}, "id": 1},
@@ -139,7 +147,7 @@ req1 = """[
 {"jsonrpc": "2.0",  "method": "test_no_params", "params": ["Hello"], "id": 3},
 {"jsonrpc": "2.0",  "method": "test_args", "params": [11,22], "id": 4},
 {"jsonrpc": "2.0",  "method": "test_kwargs", "params": {"a":1,"b":2}, "id": 5},
-{"jsonrpc": "2.0",  "method": "test_no_params", "params": {}, "id": 6},
+{"jsonrpc": "2.0",  "method": "test_no_params", "params": {}, "id": 6}
 ]"""
 
 def test_batched_request(test_async=False):
