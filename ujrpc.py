@@ -1,9 +1,11 @@
 try:
     import ujson as json
     import uasyncio as asyncio
+    is_mpy = True
 except:
     import json
     import asyncio
+    is_mpy = False
 
 class JRPC2_ERRS: # see https://www.jsonrpc.org/specification;
     PARSE_ERR = {"code": -32700, "message": "Parse error"}
@@ -106,7 +108,13 @@ class JRPCService:
         if ctx is None: return
         
         try:
-            if ctx["method"].__class__.__name__ == "generator": #async function
+            is_async = False
+            if is_mpy and ctx["method"].__class__.__name__ == "generator": #async function
+                is_async = True
+            elif (not is_mpy) and (asyncio.iscoroutinefunction(ctx["method"]) or hasattr(ctx["method"], "__await__")):
+                is_async = True
+
+            if is_async:
                 ret = await ctx["method"](ctx["_self"], *ctx["args"], **ctx["kwargs"]) #type:ignore
             else:
                 ret = ctx["method"](ctx["_self"], *ctx["args"], **ctx["kwargs"]) #type:ignore
