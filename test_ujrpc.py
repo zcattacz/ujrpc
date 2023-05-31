@@ -161,10 +161,40 @@ def test_batched_request(test_async=False):
     for i, v in enumerate([33,3,100]):
         assert(ret[i+3]["result"] == v)
 
-
-
-for test_async in [True, False]:
+for test_async in [False, True]:
     print(f"{'=== handle_rpca() ===' if test_async else '=== handle_rpc() ==='}")
     test_rpc_error(tests, test_async=test_async)
     test_parser_error(test_async=test_async)
     test_batched_request(test_async=test_async)
+
+print("=== async pattern ===")
+
+@jrpc.fn("test_async_exeorder")
+async def test_async_exeorder(r, pace, id):
+    for i in range(0,10):
+        await asyncio.sleep(pace)
+        if "Micro" in sys.version:
+            print(id, end="")
+        else:
+            print(id, end="", flush=True)
+
+async def handle_async(req, r):
+    ret = await jrpc.handle_rpca(json.dumps(req))
+    r += [ret]
+
+async def main():
+    reqs = [
+    {"jsonrpc": "2.0",  "method": "test_async_exeorder", "params": [0.2, 1], "id": 1},
+    {"jsonrpc": "2.0",  "method": "test_async_exeorder", "params": [0.4, 2], "id": 2},
+    {"jsonrpc": "2.0",  "method": "test_async_exeorder", "params": [0.6, 3], "id": 3}
+    ]
+    rsps = []
+    print("test pattern1: ", end="")
+    tasks = map(lambda req: handle_async(req, rsps), reqs)
+    await asyncio.gather(*tasks)
+    for i in range(0,3):
+        #   print(rsps[i])
+        assert(rsps[i]["id"] == i+1)
+    print(" done")
+
+asyncio.run(main())
