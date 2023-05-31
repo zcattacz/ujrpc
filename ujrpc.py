@@ -86,7 +86,7 @@ class JRPCService:
                 _r["id"] = None
                 _r.update({'id': None, "error": JRPC2_ERRS.INTNL_ERR})
 
-    def _hndl_rpc(self, data, _r):
+    def _hndl_rpc1(self, data, _r):
         ctx = self._hndl_chk(data, _r)
         if ctx is None: return
         
@@ -96,7 +96,7 @@ class JRPCService:
         except Exception as ex:
             self._hndl_err(ex, ctx, _r)
 
-    async def _hndl_rpca(self, data, _r):
+    async def _hndl_rpc1a(self, data, _r):
         ctx = self._hndl_chk(data, _r)
         if ctx is None: return
         
@@ -121,12 +121,12 @@ class JRPCService:
         _r = self.rsp2.copy()
         data = self._hndl_parsing(request, _r)
         if isinstance(data, dict):
-            self._hndl_rpc(data,_r)
+            self._hndl_rpc1(data,_r)
         elif isinstance(data, list):
             rets = []
             for batched_rpc in data:
                 _r = self.rsp2.copy()
-                self._hndl_rpc(batched_rpc,_r)
+                self._hndl_rpc1(batched_rpc,_r)
                 rets.append(_r)
             return json.dumps(rets) if self.ret_str else rets
         return json.dumps(_r) if self.ret_str else _r
@@ -135,12 +135,12 @@ class JRPCService:
         _r = self.rsp2.copy()
         data = self._hndl_parsing(request, _r)
         if isinstance(data, dict):
-            await self._hndl_rpca(data,_r)
+            await self._hndl_rpc1a(data,_r)
         elif isinstance(data, list):
             rets = []
             for batched_rpc in data:
                 _r = self.rsp2.copy()
-                await self._hndl_rpca(batched_rpc,_r)
+                await self._hndl_rpc1a(batched_rpc,_r)
                 rets.append(_r)
             return json.dumps(rets) if self.ret_str else rets
         return json.dumps(_r) if self.ret_str else _r
