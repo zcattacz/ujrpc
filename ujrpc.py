@@ -155,6 +155,7 @@ class JRPCService:
                 _r = self.rsp2.copy()
                 await self._hndl_rpc1a(batched_rpc,_r)
                 rets.append(_r)
+                await asyncio.sleep(0)
             return json.dumps(rets) if self.ret_str else rets
         return json.dumps(_r) if self.ret_str else _r
 
