@@ -74,21 +74,18 @@ class JRPCService:
                 "_self": self.bind_self if self.bind_self else self}
         
     def _hndl_err(self, ex, ctx, _r):
+        if self.debug:
+            print("RPC Handling Error", ex.args, type(ex))
         if isinstance(ex,JRPCException):
-            if self.debug:
-                print("RPC.CUSTM_ERR", ex)
             _r.update({"error": {"code": ex, "message": ex.message, "data": ex.data}})
         elif isinstance(ex,TypeError):
-            if self.debug:
-                print("RPC.INVLD_PRM", ex)
-            else:
+            if not self.debug:
                 _r["id"] = None
             _r.update({"error": JRPC2_ERRS.INVLD_PRM})
         else:
             if self.debug:
-                print("RPC.JRPC_Error", ex)
-                #import usys; usys.print_exception(ex)
-                _r.update({"error": {"code": ex.errno, "message": ex.value, "data": ex.args}}) # type:ignore
+                # not all exception have .value/.errno on cpy
+                _r.update({"error": {"type": type(ex), "args": str(ex.args), }}) # type:ignore
             else:
                 _r["id"] = None
                 _r.update({'id': None, "error": JRPC2_ERRS.INTNL_ERR})
