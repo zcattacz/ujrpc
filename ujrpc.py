@@ -66,6 +66,12 @@ class JRPCService:
             _r.update({"error": JRPC2_ERRS.INVLD_PRM})
             return
         
+        # `kwargs` is an extension to pass both positional and keyword arguments
+        # this is not defined in JRPC2.0 Spec,
+        _parms = data.get("kwargs")
+        if _parms is not None:
+            kwargs = _parms
+        
         if self.debug:
             print("params:", _parms)
 
