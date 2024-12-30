@@ -73,7 +73,7 @@ class JRPCService:
             kwargs = _parms
         
         if self.debug:
-            print("params:", _parms)
+            print("method:", mtd.__name__, "params:", _parms)
 
         _r["id"] = mtd_id
         return {"method":mtd, "id":mtd_id, "args":args, "kwargs":kwargs,
@@ -83,7 +83,7 @@ class JRPCService:
         if self.debug:
             print("RPC Handling Error", ex.args, type(ex))
         if isinstance(ex,JRPCException):
-            _r.update({"error": {"code": ex, "message": ex.message, "data": ex.data}})
+            _r.update({"error": {"code": ex.code, "message": ex.message, "data": ex.data}})
         elif isinstance(ex,TypeError):
             if not self.debug:
                 _r["id"] = None
